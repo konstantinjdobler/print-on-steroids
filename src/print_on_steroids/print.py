@@ -15,6 +15,7 @@ from .get_frame import get_frame
 class LogLevel:
     # For color options, see https://rich.readthedocs.io/en/stable/appendix/colors.html
     color_map = {
+        "print": "default",
         "debug": "grey30",
         "info": "light_sky_blue3",
         "success": "dark_green",
@@ -22,6 +23,7 @@ class LogLevel:
         "error": "red",
     }
     repr_map = {
+        "print": "PRINT",
         "debug": "DEBUG",
         "info": "INFO",
         "success": "SUCCESS",
@@ -29,6 +31,7 @@ class LogLevel:
         "error": "ERROR",
     }
     int_map = {
+        "print": -1,
         "debug": 0,
         "info": 1,
         "success": 2,
@@ -117,8 +120,8 @@ def print_on_steroids(
 
     timestamp_info = f"[dim cyan]{timestamp} |[/] " if print_time else ""
     level_info = f"[b {level_color}]{level_name:<7}[/] [dim cyan]|[/] " if print_level else ""
-    origin_info = f"[cyan]{name}[/]:[cyan]{line_no}[/] - [dim cyan]{function_name}[/] " if print_origin else ""
-    rank_info = f"[dim cyan]|[/] [b {level_color}]Rank {rank}[/] " if rank is not None and not rank0 else ""
+    origin_info = f"[cyan]{name}[/]:[cyan]{line_no}[/] - [dim cyan]{function_name}[/] [dim cyan]|[/] " if print_origin else ""
+    rank_info = f"[b {level_color}]Rank {rank}[/] [dim cyan]|[/]" if rank is not None and not rank0 else ""
 
     info = timestamp_info + level_info + origin_info + rank_info
     info = info.strip()
@@ -127,7 +130,10 @@ def print_on_steroids(
     if escape:
         message = escape_markup(message)
 
-    rich_print(info, "[dim cyan]|[/]", message, end=end)
+    if len(info) > 0:
+        message = f"{info} {message}"
+
+    rich_print(message, end=end)
 
 
 def namespace_print_on_steroids(
@@ -156,7 +162,7 @@ class PrinterOnSteroids:
     def __init__(
         self,
         mode: Literal["dev", "package", "silent", "from_env"] = "dev",
-        verbosity: str = "debug",
+        verbosity: str = "print",
         package_name: str = None,
         rank: int = None,
         print_rank0_only=False,
@@ -180,6 +186,9 @@ class PrinterOnSteroids:
         end="\n",
         escape=False,
         stack_offset=2,
+        print_time=True,
+        print_level=True,
+        print_origin=True,
     ):
         if self.mode == "silent":
             return
@@ -192,7 +201,17 @@ class PrinterOnSteroids:
 
         if self.mode == "dev":
             print_on_steroids(
-                *values, level=level, rank=rank, rank0=rank0, sep=sep, end=end, escape=escape, stack_offset=stack_offset
+                *values,
+                level=level,
+                rank=rank,
+                rank0=rank0,
+                sep=sep,
+                end=end,
+                escape=escape,
+                stack_offset=stack_offset,
+                print_time=print_time,
+                print_level=print_level,
+                print_origin=print_origin,
             )
         elif self.mode == "package":
             if LogLevel.get_int(level) > LogLevel.get_int("debug"):
@@ -200,20 +219,161 @@ class PrinterOnSteroids:
                     *values, namespace=self.package_name, level=level, rank=rank, rank0=rank0, sep=sep, end=end
                 )
 
-    def debug(self, *values, rank: int = None, rank0: bool = None, sep=" ", end="\n", escape=False):
-        self.log(*values, level="debug", rank=rank, rank0=rank0, sep=sep, end=end, escape=escape, stack_offset=3)
+    def print(
+        self,
+        *values,
+        rank: int = None,
+        rank0: bool = None,
+        sep=" ",
+        end="\n",
+        escape=False,
+        print_time=False,
+        print_level=False,
+        print_origin=False,
+    ):
+        self.log(
+            *values,
+            level="print",
+            rank=rank,
+            rank0=rank0,
+            sep=sep,
+            end=end,
+            escape=escape,
+            stack_offset=3,
+            print_time=print_time,
+            print_level=print_level,
+            print_origin=print_origin,
+        )
 
-    def info(self, *values, rank: int = None, rank0: bool = None, sep=" ", end="\n", escape=False):
-        self.log(*values, level="info", rank=rank, rank0=rank0, sep=sep, end=end, escape=escape, stack_offset=3)
+    def debug(
+        self,
+        *values,
+        rank: int = None,
+        rank0: bool = None,
+        sep=" ",
+        end="\n",
+        escape=False,
+        print_time=True,
+        print_level=False,
+        print_origin=True,
+    ):
+        self.log(
+            *values,
+            level="debug",
+            rank=rank,
+            rank0=rank0,
+            sep=sep,
+            end=end,
+            escape=escape,
+            stack_offset=3,
+            print_time=print_time,
+            print_level=print_level,
+            print_origin=print_origin,
+        )
 
-    def success(self, *values, rank: int = None, rank0: bool = None, sep=" ", end="\n", escape=False):
-        self.log(*values, level="success", rank=rank, rank0=rank0, sep=sep, end=end, escape=escape, stack_offset=3)
+    def info(
+        self,
+        *values,
+        rank: int = None,
+        rank0: bool = None,
+        sep=" ",
+        end="\n",
+        escape=False,
+        print_time=True,
+        print_level=True,
+        print_origin=True,
+    ):
+        self.log(
+            *values,
+            level="info",
+            rank=rank,
+            rank0=rank0,
+            sep=sep,
+            end=end,
+            escape=escape,
+            stack_offset=3,
+            print_time=print_time,
+            print_level=print_level,
+            print_origin=print_origin,
+        )
 
-    def warning(self, *values, rank: int = None, rank0: bool = None, sep=" ", end="\n", escape=False):
-        self.log(*values, level="warning", rank=rank, rank0=rank0, sep=sep, end=end, escape=escape, stack_offset=3)
+    def success(
+        self,
+        *values,
+        rank: int = None,
+        rank0: bool = None,
+        sep=" ",
+        end="\n",
+        escape=False,
+        print_time=True,
+        print_level=True,
+        print_origin=True,
+    ):
+        self.log(
+            *values,
+            level="success",
+            rank=rank,
+            rank0=rank0,
+            sep=sep,
+            end=end,
+            escape=escape,
+            stack_offset=3,
+            print_time=print_time,
+            print_level=print_level,
+            print_origin=print_origin,
+        )
 
-    def error(self, *values, rank: int = None, rank0: bool = None, sep=" ", end="\n", escape=False):
-        self.log(*values, level="error", rank=rank, rank0=rank0, sep=sep, end=end, escape=escape, stack_offset=3)
+    def warning(
+        self,
+        *values,
+        rank: int = None,
+        rank0: bool = None,
+        sep=" ",
+        end="\n",
+        escape=False,
+        print_time=True,
+        print_level=True,
+        print_origin=True,
+    ):
+        self.log(
+            *values,
+            level="warning",
+            rank=rank,
+            rank0=rank0,
+            sep=sep,
+            end=end,
+            escape=escape,
+            stack_offset=3,
+            print_time=print_time,
+            print_level=print_level,
+            print_origin=print_origin,
+        )
+
+    def error(
+        self,
+        *values,
+        rank: int = None,
+        rank0: bool = None,
+        sep=" ",
+        end="\n",
+        escape=False,
+        print_time=True,
+        print_level=True,
+        print_origin=True,
+    ):
+        self.log(
+            *values,
+            level="error",
+            rank=rank,
+            rank0=rank0,
+            sep=sep,
+            end=end,
+            escape=escape,
+            stack_offset=3,
+            print_time=print_time,
+            print_level=print_level,
+            print_origin=print_origin,
+        )
 
     def config(
         self,
