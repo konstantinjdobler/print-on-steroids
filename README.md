@@ -1,6 +1,7 @@
 # print-on-steroids :weight_lifting_man:
 
-[![PyPI Version](https://img.shields.io/pypi/v/print-on-steroids.svg)](https://pypi.python.org/pypi/print-on-steroids) ![Code Size](https://img.shields.io/github/languages/code-size/konstantinjdobler/print-on-steroids) ![Code Style](https://img.shields.io/badge/code%20style-black-black)
+![Build Status](https://github.com/konstantinjdobler/print-on-steroids/actions/workflows/test_publish.yml/badge.svg?branch=main) [![Conda Version](https://img.shields.io/conda/vn/conda-forge/print-on-steroids)](https://anaconda.org/conda-forge/print-on-steroids) [![PyPI Version](https://img.shields.io/pypi/v/print-on-steroids.svg)](https://pypi.python.org/pypi/print-on-steroids) ![Code Size](https://img.shields.io/github/languages/code-size/konstantinjdobler/print-on-steroids) ![Code Style](https://img.shields.io/badge/code%20style-black-black) ![Linter](https://img.shields.io/badge/linter-ruff-blue)
+
 
 A lean and hackable rich logger and print function.
 
@@ -8,13 +9,15 @@ A lean and hackable rich logger and print function.
 
 ```bash
 pip install print-on-steroids
+conda install -c conda-forge print-on-steroids
 ```
 
 ## Features
 
-- Easy switching between dev and prod modes for logging and an extra logging mode for publishing packages
-- Rich meta-information for free like timestamps and originating line of code with clickable link
 - Support for logging only on rank zero in distributed setups (e.g. Deep Learning)
+- Gracefully handles `tqdm` and `tqdm.rich` progress bars (no annoying leftover progress bars anymore!)
+- Rich meta-information for free like timestamps and originating line of code with clickable link
+- Easy switching between `dev` and `package` modes when publishing packages to PyPI (cleaner logs without clutter)
 
 ## Usage
 
@@ -44,6 +47,10 @@ logger.success("Dataset processing finished!") # <-- this now prints only on ran
 # For cleaner logs when publishing a package, use this:
 logger.config(mode="package", package_name="torch")
 
-# Dev logs can be turned on again like this:
-logger.config(mode="dev")
+# Gracefully handles tqdm
+from tqdm import tqdm
+for i in tqdm(range(42), desc="This works!"):
+    sleep(1)
+    logger.success("Work done:", i)
+    print_on_steroids("Work done:", i)
 ```
