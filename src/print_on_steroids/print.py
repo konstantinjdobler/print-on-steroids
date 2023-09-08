@@ -13,6 +13,7 @@ from .get_frame import get_frame
 
 
 class LogLevel:
+    # For color options, see https://rich.readthedocs.io/en/stable/appendix/colors.html
     color_map = {
         "debug": "grey30",
         "info": "light_sky_blue3",
