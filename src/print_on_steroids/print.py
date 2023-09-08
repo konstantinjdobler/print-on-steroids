@@ -1,10 +1,13 @@
 import os
+import sys
 import time
 from pathlib import Path
-from typing import Literal
+from typing import IO, Any, Literal, Optional
 
+from rich import get_console
 from rich.console import Console
 from rich.markup import escape as escape_markup
+from tqdm import tqdm as TQDMClass
 
 from .get_frame import get_frame
 
@@ -45,7 +48,38 @@ class LogLevel:
         return LogLevel.int_map[key]
 
 
-rich_console = Console(highlight=False, log_time_format="[%Y-%m-%d %H:%M:%S]")
+def rich_print(
+    *objects: Any,
+    sep: str = " ",
+    end: str = "\n",
+    file: Optional[IO[str]] = None,
+    flush: bool = False,
+) -> None:
+    r"""
+    Adapted from https://github.com/Textualize/rich/blob/720800e6930d85ad027b1e9bd0cbb96b5e994ce3/rich/__init__.py#L53
+
+    Disables highlighting that rich automatically does. Adds tqdm-safe printing.
+
+    ---
+
+    Print object(s) supplied via positional arguments.
+    This function has an identical signature to the built-in print.
+    For more advanced features, see the :class:`~rich.console.Console` class.
+
+    Args:
+        sep (str, optional): Separator between printed objects. Defaults to " ".
+        end (str, optional): Character to write at end of output. Defaults to "\\n".
+        file (IO[str], optional): File to write to, or None for stdout. Defaults to None.
+        flush (bool, optional): Has no effect as Rich always flushes output. Defaults to False.
+    """
+
+    write_console = get_console() if file is None else Console(file=file)
+
+    # Do not break tqdm bars, when using tqdm.rich it works out of the box since it uses the same console
+    # (Almost) a no-op if not using tqdm
+    # NOTE: debate nolock=True vs nolock=False. Let's stay with the default from reference implementation for now (nolock=False).
+    with TQDMClass.external_write_mode(file=sys.stdout, nolock=False):
+        return write_console.print(*objects, sep=sep, end=end, highlight=False)
 
 
 def print_on_steroids(
@@ -92,7 +126,7 @@ def print_on_steroids(
     if escape:
         message = escape_markup(message)
 
-    rich_console.print(info, "[dim cyan]|[/]", message, end=end)
+    rich_print(info, "[dim cyan]|[/]", message, end=end)
 
 
 def namespace_print_on_steroids(
@@ -113,7 +147,8 @@ def namespace_print_on_steroids(
     message = sep.join(str(value) for value in values)
     if escape:
         message = escape_markup(message)
-    rich_console.print(info, message, end=end)
+
+    rich_print(info, message, end=end)
 
 
 class PrinterOnSteroids:
@@ -153,11 +188,12 @@ class PrinterOnSteroids:
             rank = self.rank
         if rank0 is None:
             rank0 = self.print_rank0_only
+
         if self.mode == "dev":
             print_on_steroids(
                 *values, level=level, rank=rank, rank0=rank0, sep=sep, end=end, escape=escape, stack_offset=stack_offset
             )
-        else:
+        elif self.mode == "package":
             if LogLevel.get_int(level) > LogLevel.get_int("debug"):
                 namespace_print_on_steroids(
                     *values, namespace=self.package_name, level=level, rank=rank, rank0=rank0, sep=sep, end=end
@@ -186,11 +222,11 @@ class PrinterOnSteroids:
         rank: int = None,
         print_rank0_only: bool = None,
     ):
-        self.rank = rank or self.rank
-        self.mode = mode or self.mode
-        self.package_name = package_name or self.package_name
-        self.print_rank0_only = print_rank0_only or self.print_rank0_only
-        self.verbosity = verbosity or self.verbosity
+        self.rank = self.rank if rank is None else rank
+        self.mode = self.mode if mode is None else mode
+        self.package_name = self.package_name if package_name is None else package_name
+        self.print_rank0_only = self.print_rank0_only if print_rank0_only is None else print_rank0_only
+        self.verbosity = self.verbosity if verbosity is None else verbosity
 
     def set_rank(self, rank: int):
         self.rank = rank
