@@ -111,28 +111,24 @@ def extract_frame_info(frame: FrameType):
 
 def print_on_steroids(
     *values,
-    level: str = "info",
+    level: str = "print",
     rank: int = None,
-    rank0: bool = None,
-    sep=" ",
-    end="\n",
-    escape=False,
-    stack_offset=1,
-    print_time=True,
-    print_level=True,
-    print_origin=True,
+    rank0_only: bool = None,
+    print_time: bool = False,
+    print_level: bool = True,
+    print_origin: bool = False,
+    sep: str = " ",
+    end: str = "\n",
+    escape: bool = False,
+    stack_offset: int = 1,
 ):
-    if rank0 and rank != 0:
+    if rank0_only and rank != 0:
         return
+    if level == "print":
+        print_level = False
+
     frame = get_frame(stack_offset)
-
     line_no, function_name, file_name, path = extract_frame_info(frame)
-
-    if path == "__main__":
-        path = Path(file_name).name
-    else:
-        # Enable jumping to source code in IDEs
-        path = f"{path.replace('.', '/')}.py"
 
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     level_color = LogLevel.get_color(level)
@@ -141,7 +137,7 @@ def print_on_steroids(
     timestamp_info = f"[dim cyan]{timestamp} |[/] " if print_time else ""
     level_info = f"[b {level_color}]{level_name:<7}[/] [dim cyan]|[/] " if print_level else ""
     origin_info = f"[cyan]{path}[/]:[cyan]{line_no}[/] - [dim cyan]{function_name}[/] [dim cyan]|[/] " if print_origin else ""
-    rank_info = f"[b {level_color}]Rank {rank}[/] [dim cyan]|[/]" if rank is not None and not rank0 else ""
+    rank_info = f"[b {level_color}]Rank {rank}[/] [dim cyan]|[/]" if rank is not None and not rank0_only else ""
 
     info = timestamp_info + level_info + origin_info + rank_info
     info = info.strip()
@@ -161,12 +157,12 @@ def namespace_print_on_steroids(
     namespace: str,
     level: str | int = "info",
     rank: int = None,
-    rank0: bool = None,
+    rank0_only: bool = None,
     sep=" ",
     end="\n",
     escape=False,
 ):
-    if rank0 and rank != 0:
+    if rank0_only and rank != 0:
         return
     level_color = LogLevel.get_color(level)
     level_name = LogLevel.get_repr(level)
@@ -201,7 +197,7 @@ class PrinterOnSteroids:
         *values,
         level: str | int = "info",
         rank: int = None,
-        rank0: bool = None,
+        rank0_only: bool = None,
         sep=" ",
         end="\n",
         escape=False,
@@ -216,15 +212,15 @@ class PrinterOnSteroids:
             return
         if rank is None:
             rank = self.rank
-        if rank0 is None:
-            rank0 = self.print_rank0_only
+        if rank0_only is None:
+            rank0_only = self.print_rank0_only
 
         if self.mode == "dev":
             print_on_steroids(
                 *values,
                 level=level,
                 rank=rank,
-                rank0=rank0,
+                rank0_only=rank0_only,
                 sep=sep,
                 end=end,
                 escape=escape,
@@ -236,14 +232,14 @@ class PrinterOnSteroids:
         elif self.mode == "package":
             if LogLevel.get_int(level) > LogLevel.get_int("debug"):
                 namespace_print_on_steroids(
-                    *values, namespace=self.package_name, level=level, rank=rank, rank0=rank0, sep=sep, end=end
+                    *values, namespace=self.package_name, level=level, rank=rank, rank0_only=rank0_only, sep=sep, end=end
                 )
 
     def print(
         self,
         *values,
         rank: int = None,
-        rank0: bool = None,
+        rank0_only: bool = None,
         sep=" ",
         end="\n",
         escape=False,
@@ -255,7 +251,7 @@ class PrinterOnSteroids:
             *values,
             level="print",
             rank=rank,
-            rank0=rank0,
+            rank0_only=rank0_only,
             sep=sep,
             end=end,
             escape=escape,
@@ -269,7 +265,7 @@ class PrinterOnSteroids:
         self,
         *values,
         rank: int = None,
-        rank0: bool = None,
+        rank0_only: bool = None,
         sep=" ",
         end="\n",
         escape=False,
@@ -281,7 +277,7 @@ class PrinterOnSteroids:
             *values,
             level="debug",
             rank=rank,
-            rank0=rank0,
+            rank0_only=rank0_only,
             sep=sep,
             end=end,
             escape=escape,
@@ -295,7 +291,7 @@ class PrinterOnSteroids:
         self,
         *values,
         rank: int = None,
-        rank0: bool = None,
+        rank0_only: bool = None,
         sep=" ",
         end="\n",
         escape=False,
@@ -307,7 +303,7 @@ class PrinterOnSteroids:
             *values,
             level="info",
             rank=rank,
-            rank0=rank0,
+            rank0_only=rank0_only,
             sep=sep,
             end=end,
             escape=escape,
@@ -321,7 +317,7 @@ class PrinterOnSteroids:
         self,
         *values,
         rank: int = None,
-        rank0: bool = None,
+        rank0_only: bool = None,
         sep=" ",
         end="\n",
         escape=False,
@@ -333,7 +329,7 @@ class PrinterOnSteroids:
             *values,
             level="success",
             rank=rank,
-            rank0=rank0,
+            rank0_only=rank0_only,
             sep=sep,
             end=end,
             escape=escape,
@@ -347,7 +343,7 @@ class PrinterOnSteroids:
         self,
         *values,
         rank: int = None,
-        rank0: bool = None,
+        rank0_only: bool = None,
         sep=" ",
         end="\n",
         escape=False,
@@ -359,7 +355,7 @@ class PrinterOnSteroids:
             *values,
             level="warning",
             rank=rank,
-            rank0=rank0,
+            rank0_only=rank0_only,
             sep=sep,
             end=end,
             escape=escape,
@@ -373,7 +369,7 @@ class PrinterOnSteroids:
         self,
         *values,
         rank: int = None,
-        rank0: bool = None,
+        rank0_only: bool = None,
         sep=" ",
         end="\n",
         escape=False,
@@ -385,7 +381,7 @@ class PrinterOnSteroids:
             *values,
             level="error",
             rank=rank,
-            rank0=rank0,
+            rank0_only=rank0_only,
             sep=sep,
             end=end,
             escape=escape,
