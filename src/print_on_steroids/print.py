@@ -6,13 +6,18 @@ from pathlib import Path
 from types import FrameType
 from typing import IO, Any, Callable, Iterable, Literal, Optional
 
-from better_exceptions import format_exception
 from rich import get_console
 from rich.console import Console
 from rich.markup import escape as escape_markup
 from tqdm import tqdm as TQDMClass
 
 from .get_frame import get_frame
+
+# If we cannot import better_exceptions, we fall back to the standard traceback module
+try:
+    from better_exceptions import format_exception
+except ImportError:
+    from traceback import format_exception
 
 
 class LogLevel:
