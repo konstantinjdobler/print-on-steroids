@@ -1,9 +1,12 @@
 import os
 import sys
 import time
+from contextlib import contextmanager
 from pathlib import Path
-from typing import IO, Any, Literal, Optional
+from types import FrameType
+from typing import IO, Any, Callable, Iterable, Literal, Optional
 
+from better_exceptions import format_exception
 from rich import get_console
 from rich.console import Console
 from rich.markup import escape as escape_markup
@@ -86,6 +89,21 @@ def rich_print(
         return write_console.print(*objects, sep=sep, end=end, highlight=False)
 
 
+def extract_frame_info(frame: FrameType):
+    line_no = frame.f_lineno
+    function_name = frame.f_code.co_name
+    file_name = frame.f_code.co_filename
+    path = frame.f_globals["__name__"]
+
+    if path == "__main__":
+        path = Path(file_name).name
+    else:
+        # Enable jumping to source code in IDEs
+        path = f"{path.replace('.', '/')}.py"
+
+    return line_no, function_name, file_name, path
+
+
 def print_on_steroids(
     *values,
     level: str = "info",
@@ -103,16 +121,13 @@ def print_on_steroids(
         return
     frame = get_frame(stack_offset)
 
-    line_no = frame.f_lineno
-    function_name = frame.f_code.co_name
-    file_name = frame.f_code.co_filename
-    name = frame.f_globals["__name__"]
+    line_no, function_name, file_name, path = extract_frame_info(frame)
 
-    if name == "__main__":
-        name = Path(file_name).name
+    if path == "__main__":
+        path = Path(file_name).name
     else:
         # Enable jumping to source code in IDEs
-        name = f"{name.replace('.', '/')}.py"
+        path = f"{path.replace('.', '/')}.py"
 
     timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     level_color = LogLevel.get_color(level)
@@ -120,7 +135,7 @@ def print_on_steroids(
 
     timestamp_info = f"[dim cyan]{timestamp} |[/] " if print_time else ""
     level_info = f"[b {level_color}]{level_name:<7}[/] [dim cyan]|[/] " if print_level else ""
-    origin_info = f"[cyan]{name}[/]:[cyan]{line_no}[/] - [dim cyan]{function_name}[/] [dim cyan]|[/] " if print_origin else ""
+    origin_info = f"[cyan]{path}[/]:[cyan]{line_no}[/] - [dim cyan]{function_name}[/] [dim cyan]|[/] " if print_origin else ""
     rank_info = f"[b {level_color}]Rank {rank}[/] [dim cyan]|[/]" if rank is not None and not rank0 else ""
 
     info = timestamp_info + level_info + origin_info + rank_info
@@ -400,4 +415,75 @@ class PrinterOnSteroids:
         self.mode = mode
 
 
+@contextmanager
+def graceful_exceptions(
+    handled_exceptions: Exception | Iterable[Exception] = Exception,
+    *,
+    on_exception: Callable[[Exception], Any] = lambda e: None,
+    exit: bool = True,
+    extra_message: str = "",
+):
+    """
+    Context manager and decorator that gracefully handles exceptions with a beautiful traceback print.
+
+    `handled_exceptions` can be a single or list of exceptions, e.g. `ValueError` or `[ValueError, TypeError]`. All exceptions that are not a subclass of these are not handled. By default, all exceptions are handled.
+
+    `on_exception` is an optional callback that is called after the traceback print. It is passed the exception as argument.
+
+    If `exit=True`, we exit with `sys.exit(1)` after the traceback print (default). Otherwise, the exception is caught and the program continues.
+
+    `extra_message` is an optional message that is printed with the traceback print, e.g. the rank of the process in a distributed setting.
+
+    Usage as decorator:
+    ```python
+    @graceful_exceptions()
+    def my_func(arg1, arg2):
+        raise ValueError("Bad!")
+    ```
+
+    Usage as context manager:
+    ```python
+    def my_func(arg1, arg2):
+        raise ValueError("Bad!")
+
+    with graceful_exceptions():
+        my_func(1, 2)
+    ```
+    """
+    handled_exceptions = handled_exceptions if isinstance(handled_exceptions, Iterable) else [handled_exceptions]
+    try:
+        yield
+    except Exception as e:
+        if not any(issubclass(e.__class__, exc) for exc in handled_exceptions):
+            raise e
+
+        traceback, full_traceback = e.__traceback__, e.__traceback__
+        # Loop until last frame, which is where the exception was raised
+        while traceback.tb_next:
+            traceback = traceback.tb_next
+        line_no, function_name, file_name, name = extract_frame_info(traceback.tb_frame)
+        origin_info = f"[cyan]{name}[/]:[cyan]{line_no}[/] - [dim cyan]{function_name}[/]"
+
+        # Skip the first frame for printing, which is the context manager/decorator
+        full_traceback = full_traceback.tb_next
+        *formatted_traceback, formatted_exception = format_exception(type(e), e, full_traceback)
+        exc_message = "".join([*formatted_traceback, formatted_exception])
+
+        color = "red" if exit else "green"
+        prefix = "Caught " if not exit else ""
+        if len(extra_message):
+            extra_message = f"| {extra_message} "
+        get_console().rule(title=f"[b]↓[/] {prefix}{formatted_exception} | {origin_info } {extra_message}[b]↓", style=color)
+        rich_print(exc_message.strip())
+        get_console().rule(title=f"[b]↑[/] {prefix}{formatted_exception} | {origin_info } {extra_message}[b]↑", style=color)
+
+        # Optional user-defined callback
+        on_exception(e)
+
+        if exit:
+            # Kill like this so that we do not get duplicate Traceback print
+            sys.exit(1)
+
+
+# Instantiate for easy import
 logger = PrinterOnSteroids(mode="dev", package_name=None)
