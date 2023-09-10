@@ -6,12 +6,19 @@ A lean and hackable rich logger and drop-in enhanced replacement for the native 
 
 ## Installation
 
+You can install `print-on-steroids` with `pip`:
+
 ```bash
 pip install print-on-steroids
+```
+
+or `conda`:
+
+```bash
 conda install -c conda-forge print-on-steroids
 ```
 
-If installing from `conda`, you need to `pip install better-exceptions` manually if you want better traceback formatting.
+We use the `better-exceptions` package if available to pretty print tracebacks. To install `better-exceptions`, use `pip install print-on-steroids[exceptions]` instead or run `pip install better-exceptions` manually.
 
 ## Features
 
