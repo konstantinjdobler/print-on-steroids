@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import time
 from contextlib import contextmanager
@@ -423,6 +424,7 @@ def graceful_exceptions(
     on_exception: Callable[[Exception], Any] = lambda e: None,
     exit: bool = True,
     extra_message: str = "",
+    relative_to: str | None = None,
 ):
     """
     Context manager and decorator that gracefully handles exceptions with a beautiful traceback print.
@@ -434,6 +436,8 @@ def graceful_exceptions(
     If `exit=True`, we exit with `sys.exit(1)` after the traceback print (default). Otherwise, the exception is caught and the program continues.
 
     `extra_message` is an optional message that is printed with the traceback print, e.g. the rank of the process in a distributed setting.
+
+    `relative_to` formats file paths inside the given package relative to this package. For example, if `relative_to="my_package"`, then `/user/long/path/my_package/my_module.py` will be printed as `my_module.py`. This is useful when you mount files inside a docker container to a different directory than on your host machine.
 
     Usage as decorator:
     ```python
@@ -469,6 +473,16 @@ def graceful_exceptions(
         full_traceback = full_traceback.tb_next
         *formatted_traceback, formatted_exception = format_exception(type(e), e, full_traceback)
         exc_message = "".join([*formatted_traceback, formatted_exception])
+
+        if relative_to is not None:
+            def make_filepaths_relative(match):
+                file_path, line_number, function_name = match.groups()
+                if relative_to in file_path:
+                    file_path = file_path.split(relative_to)[1].lstrip("/")
+                return f'File "{file_path}", line {line_number}, in {function_name}'
+
+            pattern = r'File "([^"]+)", line (\d+), in ([^ ]+)'
+            exc_message = re.sub(pattern, make_filepaths_relative, exc_message)
 
         color = "red" if exit else "green"
         prefix = "Caught " if not exit else ""
