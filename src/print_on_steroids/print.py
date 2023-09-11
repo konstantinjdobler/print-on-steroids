@@ -120,7 +120,7 @@ def print_on_steroids(
     print_origin: bool = False,
     sep: str = " ",
     end: str = "\n",
-    escape: bool = False,
+    escape: bool = True,
     stack_offset: int = 1,
 ):
     if rank0_only and rank != 0:
@@ -161,7 +161,7 @@ def namespace_print_on_steroids(
     rank0_only: bool = None,
     sep=" ",
     end="\n",
-    escape=False,
+    escape=True,
 ):
     if rank0_only and rank != 0:
         return
@@ -183,6 +183,7 @@ class PrinterOnSteroids:
         package_name: str = None,
         rank: int = None,
         print_rank0_only=False,
+        escape=True,
     ):
         if mode == "from_env":
             assert package_name is not None
@@ -192,6 +193,7 @@ class PrinterOnSteroids:
         self.rank = rank
         self.print_rank0_only = print_rank0_only
         self.verbosity = verbosity
+        self.escape = escape
 
     def log(
         self,
@@ -201,7 +203,7 @@ class PrinterOnSteroids:
         rank0_only: bool = None,
         sep=" ",
         end="\n",
-        escape=False,
+        escape=None,
         stack_offset=2,
         print_time=True,
         print_level=True,
@@ -215,6 +217,8 @@ class PrinterOnSteroids:
             rank = self.rank
         if rank0_only is None:
             rank0_only = self.print_rank0_only
+        if self.escape is None:
+            self.escape = escape
 
         if self.mode == "dev":
             print_on_steroids(
@@ -243,7 +247,7 @@ class PrinterOnSteroids:
         rank0_only: bool = None,
         sep=" ",
         end="\n",
-        escape=False,
+        escape=None,
         print_time=False,
         print_level=False,
         print_origin=False,
@@ -269,7 +273,7 @@ class PrinterOnSteroids:
         rank0_only: bool = None,
         sep=" ",
         end="\n",
-        escape=False,
+        escape=None,
         print_time=True,
         print_level=False,
         print_origin=True,
@@ -295,7 +299,7 @@ class PrinterOnSteroids:
         rank0_only: bool = None,
         sep=" ",
         end="\n",
-        escape=False,
+        escape=None,
         print_time=True,
         print_level=True,
         print_origin=True,
@@ -321,7 +325,7 @@ class PrinterOnSteroids:
         rank0_only: bool = None,
         sep=" ",
         end="\n",
-        escape=False,
+        escape=None,
         print_time=True,
         print_level=True,
         print_origin=True,
@@ -347,7 +351,7 @@ class PrinterOnSteroids:
         rank0_only: bool = None,
         sep=" ",
         end="\n",
-        escape=False,
+        escape=None,
         print_time=True,
         print_level=True,
         print_origin=True,
@@ -373,7 +377,7 @@ class PrinterOnSteroids:
         rank0_only: bool = None,
         sep=" ",
         end="\n",
-        escape=False,
+        escape=None,
         print_time=True,
         print_level=True,
         print_origin=True,
@@ -399,12 +403,14 @@ class PrinterOnSteroids:
         package_name: str = None,
         rank: int = None,
         print_rank0_only: bool = None,
+        escape: bool = None,
     ):
         self.rank = self.rank if rank is None else rank
         self.mode = self.mode if mode is None else mode
         self.package_name = self.package_name if package_name is None else package_name
         self.print_rank0_only = self.print_rank0_only if print_rank0_only is None else print_rank0_only
         self.verbosity = self.verbosity if verbosity is None else verbosity
+        self.escape = self.escape if escape is None else escape
 
     def set_rank(self, rank: int):
         self.rank = rank
@@ -475,6 +481,7 @@ def graceful_exceptions(
         exc_message = "".join([*formatted_traceback, formatted_exception])
 
         if relative_to is not None:
+
             def make_filepaths_relative(match):
                 file_path, line_number, function_name = match.groups()
                 if relative_to in file_path:
