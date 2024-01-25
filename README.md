@@ -58,7 +58,7 @@ logger.error("This", "is", "fatal")
 
 # Easy setup for distributed setting:
 logger.config(rank=RANK, print_rank0_only=True)
-# Afterwards, the rank is remembered and does not need to be passed agai
+# Afterwards, the rank is remembered and does not need to be passed again
 logger.success("Dataset processing finished!") # <-- this now prints only on rank zero
 
 # For cleaner logs when publishing a package, use this:
